@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="HaliSahaRezervasyonOtomasyonu.Models.Musteri" Collapsed="true">
+    <Position X="7.75" Y="1" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIAAAAAAAAAAAQAAAAAAAIAAAAAAAAACAAAAAABAAA=</HashCode>
+      <FileName>Models\Musteri.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsCollectionAssociation>
+      <Property Name="Rezervasyonlar" />
+    </ShowAsCollectionAssociation>
+  </Class>
+  <Class Name="HaliSahaRezervasyonOtomasyonu.Models.Rezervasyon" Collapsed="true">
+    <Position X="4.5" Y="1" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAQIAAAAAAAAAAAAAAIAQAAAACAAAAAAAAAAACE=</HashCode>
+      <FileName>Models\Rezervasyon.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="Musteri" />
+      <Property Name="Saha" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="HaliSahaRezervasyonOtomasyonu.Models.Saha" Collapsed="true">
+    <Position X="1.5" Y="1" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAQAAAAAAAAAAEAAIAAAAACAAAAAAAE=</HashCode>
+      <FileName>Models\Saha.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsCollectionAssociation>
+      <Property Name="Rezervasyonlar" />
+    </ShowAsCollectionAssociation>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

@@ -1,0 +1,823 @@
+================================================================================
+  ⚽ HALI SAHA REZERVASYON OTOMASYONU - DETAYLI PROJE AÇIKLAMASI
+================================================================================
+  Bu doküman, projede kullanılan tüm kavramları, sınıfları, ilişkileri ve
+  işlemleri detaylı şekilde açıklamaktadır. Okuduktan sonra benzer bir projeyi
+  kendiniz baştan sona yapabilecek seviyeye geleceksiniz.
+================================================================================
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      BÖLÜM 1: TEMEL KAVRAMLAR                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+1.1 ENTITY FRAMEWORK (EF6) NEDİR?
+────────────────────────────────────
+Entity Framework, Microsoft'un geliştirdiği bir ORM (Object-Relational Mapping)
+kütüphanesidir. ORM, veritabanı tablolarını C# sınıflarına (class) eşler.
+
+Normal yol:
+  SQL yazmak → "SELECT * FROM Musteriler WHERE MusteriID = 1"
+
+EF6 yolu:
+  C# yazmak → db.Musteriler.Find(1)
+
+Yani SQL yazmak yerine, C# nesneleriyle çalışırsınız. EF6 arka planda
+bu nesneleri SQL'e çevirir ve veritabanıyla iletişim kurar.
+
+
+1.2 DbContext NEDİR?
+────────────────────────────────────
+DbContext, EF6'nın ana sınıfıdır. C# uygulamanız ile veritabanı arasındaki
+"köprü" görevi görür. Projemizde "ContextDb" adını verdik.
+
+Görevleri:
+  ✓ Veritabanı bağlantısını yönetir
+  ✓ Tabloları DbSet<T> olarak temsil eder
+  ✓ CRUD işlemlerini yönetir (Ekle, Oku, Güncelle, Sil)
+  ✓ Değişiklikleri takip eder (Change Tracking)
+  ✓ SQL sorgularını otomatik oluşturur
+
+Kullanımı:
+  using (var db = new ContextDb())
+  {
+      // db.Musteriler → Musteriler tablosuna erişim
+      // db.Sahalar → Sahalar tablosuna erişim
+      // db.Rezervasyonlar → Rezervasyonlar tablosuna erişim
+  }
+
+
+1.3 DbSet<T> NEDİR?
+────────────────────────────────────
+DbSet, veritabanındaki bir tablonun C# tarafındaki karşılığıdır.
+T yerine hangi sınıfı yazarsanız, o tabloya erişirsiniz.
+
+  public DbSet<Musteri> Musteriler { get; set; }
+    → Veritabanındaki "Musteriler" tablosuna karşılık gelir
+
+  public DbSet<Saha> Sahalar { get; set; }
+    → Veritabanındaki "Sahalar" tablosuna karşılık gelir
+
+  public DbSet<Rezervasyon> Rezervasyonlar { get; set; }
+    → Veritabanındaki "Rezervasyonlar" tablosuna karşılık gelir
+
+DbSet üzerinden yapabileceğiniz işlemler:
+  db.Musteriler.Add(nesne)     → INSERT (Ekleme)
+  db.Musteriler.Find(id)       → SELECT WHERE (Tek kayıt bulma)
+  db.Musteriler.Remove(nesne)  → DELETE (Silme)
+  db.Musteriler.ToList()       → SELECT * (Tümünü listeleme)
+  db.SaveChanges()             → Değişiklikleri veritabanına kaydetme
+
+
+1.4 "using" BLOĞU NEDİR?
+────────────────────────────────────
+"using" bloğu, IDisposable arayüzünü uygulayan nesneleri otomatik olarak
+bellekten temizler. ContextDb, DbContext'ten miras aldığı için IDisposable'dır.
+
+  using (var db = new ContextDb())   ← Bağlantı açılır
+  {
+      // İşlemler yapılır
+  }                                   ← Bağlantı otomatik kapanır
+
+Neden önemli?
+  - Veritabanı bağlantıları sınırlıdır
+  - Kapatılmayan bağlantılar sistem kaynaklarını tüketir
+  - using bloğu, hata olsa bile bağlantıyı kapatmayı garanti eder
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      BÖLÜM 2: SINIF (CLASS) YAPILARI                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+2.1 PROPERTY (ÖZELLİK) VE GET/SET NEDİR?
+────────────────────────────────────────────
+Property, bir sınıfın dışarıdan erişilebilir özelliklerini tanımlar.
+get ve set anahtar kelimeleri, bu özelliğin okunup yazılabilirliğini belirler.
+
+  public string Ad { get; set; }
+
+Bu satır aslında şunun kısa halidir:
+
+  private string _ad;            ← Özel alan (field)
+
+  public string Ad               ← Özellik (Property)
+  {
+      get { return _ad; }        ← Değeri OKU
+      set { _ad = value; }       ← Değeri YAZ
+  }
+
+Kullanım örneği:
+  var musteri = new Musteri();
+  musteri.Ad = "Ahmet";          ← set çağrılır, _ad = "Ahmet" olur
+  string isim = musteri.Ad;      ← get çağrılır, isim = "Ahmet" olur
+
+
+2.2 DATA ANNOTATION (VERİ AÇIKLAMALARI) NEDİR?
+──────────────────────────────────────────────────
+Data Annotation'lar, property'lerin üstüne yazılan özniteliklerdir (attribute).
+EF6'ya o property hakkında ek bilgi verir.
+
+  [Key]                  → Bu property Birincil Anahtardır (Primary Key)
+  [Required]             → Bu alan boş bırakılamaz (NOT NULL)
+  [StringLength(50)]     → Maksimum 50 karakter olabilir (NVARCHAR(50))
+  [Table("Musteriler")]  → Bu sınıf, veritabanındaki "Musteriler" tablosuna eşlenir
+  [ForeignKey("MusteriID")] → Bu navigation property, MusteriID alanı ile ilişkilidir
+
+
+2.3 MUSTERİ SINIFI (DETAYLI AÇIKLAMA)
+────────────────────────────────────────
+  [Table("Musteriler")]                 ← Veritabanındaki "Musteriler" tablosu
+  public class Musteri
+  {
+      [Key]                             ← Birincil Anahtar (Primary Key)
+      public int MusteriID { get; set; }
+
+      [Required]                        ← Boş bırakılamaz
+      [StringLength(50)]                ← Maks. 50 karakter
+      public string Ad { get; set; }
+
+      [Required]
+      [StringLength(50)]
+      public string Soyad { get; set; }
+
+      [Required]
+      [StringLength(20)]
+      public string Telefon { get; set; }
+
+      // ===== NAVİGATİON PROPERTY =====
+      public virtual ICollection<Rezervasyon> Rezervasyonlar { get; set; }
+
+      // ===== YAPICI METOT =====
+      public Musteri()
+      {
+          Rezervasyonlar = new HashSet<Rezervasyon>();
+      }
+  }
+
+Satır satır açıklama:
+
+  [Table("Musteriler")]
+    → Bu sınıfın veritabanındaki karşılığı "Musteriler" tablosudur.
+    → Eğer bu attribute olmazsa, EF6 tablo adını sınıf adından türetir.
+
+  [Key]
+  public int MusteriID { get; set; }
+    → Bu property birincil anahtardır.
+    → Veritabanında IDENTITY(1,1) ile otomatik artar.
+    → Her müşteri benzersiz bir MusteriID'ye sahiptir.
+    → Adlandırma kuralı: TabloAdiID formatında (Örn: MusteriID).
+
+  public virtual ICollection<Rezervasyon> Rezervasyonlar { get; set; }
+    → Bu bir "Navigation Property" dir (Gezinme Özelliği).
+    → Bir müşterinin birden fazla rezervasyonu olabilir.
+    → "virtual" anahtar kelimesi Lazy Loading için gereklidir.
+    → ICollection<Rezervasyon> → Rezervasyon nesnelerinin koleksiyonu.
+    → Bu sayede: musteri.Rezervasyonlar → o müşterinin tüm rezervasyonları.
+
+  public Musteri()
+  {
+      Rezervasyonlar = new HashSet<Rezervasyon>();
+  }
+    → Yapıcı metot (Constructor).
+    → Koleksiyonu boş bir HashSet olarak başlatır.
+    → Eğer bunu yapmazsanız, koleksiyon null olur ve NullReferenceException alırsınız.
+    → HashSet, aynı elemanın tekrar eklenmesini önler.
+
+
+2.4 SAHA SINIFI (DETAYLI AÇIKLAMA)
+────────────────────────────────────
+  [Table("Sahalar")]
+  public class Saha
+  {
+      [Key]
+      public int SahaID { get; set; }
+
+      [Required]
+      [StringLength(100)]
+      public string SahaAdi { get; set; }
+
+      [Required]
+      [StringLength(50)]
+      public string SahaTuru { get; set; }
+
+      [Required]
+      public decimal SaatlikUcret { get; set; }
+
+      public virtual ICollection<Rezervasyon> Rezervasyonlar { get; set; }
+
+      public Saha()
+      {
+          Rezervasyonlar = new HashSet<Rezervasyon>();
+      }
+  }
+
+Önemli noktalar:
+
+  public decimal SaatlikUcret { get; set; }
+    → "decimal" veri tipi parasal değerler için kullanılır.
+    → float veya double'a göre çok daha hassas hesaplama yapar.
+    → Örnek: 1600.00 TL gibi değerler tam doğrulukta saklanır.
+    → Veritabanında DECIMAL(10,2) olarak eşlenir.
+
+  public virtual ICollection<Rezervasyon> Rezervasyonlar { get; set; }
+    → Musteri sınıfındakiyle aynı mantık.
+    → Bir sahanın birden fazla rezervasyonu olabilir (One-to-Many).
+
+
+2.5 REZERVASYON SINIFI (ARACI TABLO - DETAYLI AÇIKLAMA)
+──────────────────────────────────────────────────────────
+  [Table("Rezervasyonlar")]
+  public class Rezervasyon
+  {
+      [Key]
+      public int RezervasyonID { get; set; }
+
+      public int MusteriID { get; set; }          ← Foreign Key
+      public int SahaID { get; set; }             ← Foreign Key
+
+      [Required]
+      public DateTime MacTarihi { get; set; }
+
+      [Required]
+      [StringLength(10)]
+      public string MacSaati { get; set; }
+
+      [ForeignKey("MusteriID")]
+      public virtual Musteri Musteri { get; set; }     ← Navigation Property
+
+      [ForeignKey("SahaID")]
+      public virtual Saha Saha { get; set; }           ← Navigation Property
+  }
+
+Satır satır açıklama:
+
+  public int MusteriID { get; set; }
+    → Foreign Key (Yabancı Anahtar).
+    → Bu alan, Musteriler tablosundaki MusteriID'ye referans verir.
+    → Hangi müşterinin rezervasyon yaptığını belirtir.
+    → EF6, bu alanın adının "MusteriID" olmasından otomatik olarak FK olduğunu anlar.
+
+  [ForeignKey("MusteriID")]
+  public virtual Musteri Musteri { get; set; }
+    → Navigation Property.
+    → [ForeignKey("MusteriID")] → Bu property'nin MusteriID alanıyla ilişkili olduğunu belirtir.
+    → "virtual" → Lazy Loading desteği sağlar.
+    → Bu sayede: rezervasyon.Musteri.Ad → O rezervasyonu yapan müşterinin adı.
+    → EF6 arka planda JOIN sorgusu oluşturur.
+
+  Neden "virtual" kullanıyoruz?
+    → Lazy Loading (Tembel Yükleme) mekanizması için.
+    → Lazy Loading: İlişkili veriler, sadece erişildiğinde yüklenir.
+    → Örnek: rezervasyon.Musteri dediğinizde, EF6 o an Musteri tablosundan veriyi çeker.
+    → Bu sayede gereksiz veri yüklemesi önlenir.
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      BÖLÜM 3: MİRAS (INHERITANCE) YAPISI                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+3.1 DbContext'TEN MİRAS ALMA
+────────────────────────────────
+  public class ContextDb : DbContext
+                         ↑
+                         └── ":" işareti miras almayı ifade eder
+
+Miras (Inheritance) ne demek?
+  → ContextDb sınıfı, DbContext sınıfının tüm özelliklerini ve metotlarını
+    otomatik olarak devralır.
+  → Yani DbContext'in içindeki tüm kodlar, ContextDb'de de kullanılabilir.
+
+DbContext'ten devralınan önemli özellikler:
+  ✓ SaveChanges() metodu → Değişiklikleri veritabanına kaydetme
+  ✓ Set<T>() metodu → DbSet'e erişim
+  ✓ Database özelliği → Veritabanı yönetimi
+  ✓ ChangeTracker → Değişiklik takibi
+  ✓ Dispose() metodu → Bağlantıyı kapatma
+
+Yapıcı metottaki miras:
+  public ContextDb() : base("HaliSahaDB")
+                       ↑
+                       └── "base" → Üst sınıfın (DbContext) yapıcı metodunu çağırır
+                           "HaliSahaDB" → App.config'deki bağlantı dizesi adı
+
+
+3.2 FORM1 : FORM (WINDOWS FORMS MİRASI)
+──────────────────────────────────────────
+  public partial class Form1 : Form
+
+  → Form1 sınıfı, System.Windows.Forms.Form sınıfından miras alır.
+  → "partial" → Sınıf birden fazla dosyada tanımlanabilir:
+    - Form1.cs → Kod mantığı (event handler'lar)
+    - Form1.Designer.cs → Arayüz tasarımı (kontrollerin tanımları)
+  → İki dosya birleşerek tek bir sınıf oluşturur.
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   BÖLÜM 4: İLİŞKİLER VE NAVİGATİON PROPERTY               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+4.1 İLİŞKİ TÜRLERİ
+────────────────────────
+Veritabanlarında 3 temel ilişki türü vardır:
+
+  1) One-to-One (Bire-Bir):
+     → Bir kayıt, diğer tabloda yalnızca bir kayıtla eşleşir.
+     → Örnek: Bir kişinin bir TC kimlik numarası vardır.
+
+  2) One-to-Many (Bire-Çok): ← BU PROJEDEKİ İLİŞKİ TÜRÜ
+     → Bir kayıt, diğer tabloda birden fazla kayıtla eşleşir.
+     → Örnek: Bir müşterinin birden fazla rezervasyonu olabilir.
+     → "Bir" tarafta: ICollection<T> navigation property
+     → "Çok" tarafta: Tekil navigation property + Foreign Key
+
+  3) Many-to-Many (Çoka-Çok):
+     → Her iki tablodaki kayıtlar birbirleriyle çoklu eşleşir.
+     → Genellikle aracı tablo ile uygulanır.
+
+
+4.2 PROJEDEKİ İLİŞKİLER
+──────────────────────────
+
+  ┌──────────┐     1:N     ┌──────────────┐     N:1     ┌──────────┐
+  │ Musteri  │────────────►│ Rezervasyon  │◄────────────│  Saha    │
+  └──────────┘             └──────────────┘             └──────────┘
+
+  MUSTERİ (1) ───────► REZERVASYON (N)
+    "Bir müşterinin birden fazla rezervasyonu olabilir"
+    Musteri sınıfında: ICollection<Rezervasyon> Rezervasyonlar
+    Rezervasyon sınıfında: Musteri Musteri + int MusteriID
+
+  SAHA (1) ───────► REZERVASYON (N)
+    "Bir sahanın birden fazla rezervasyonu olabilir"
+    Saha sınıfında: ICollection<Rezervasyon> Rezervasyonlar
+    Rezervasyon sınıfında: Saha Saha + int SahaID
+
+
+4.3 NAVİGATİON PROPERTY'LER NASIL ÇALIŞIR?
+─────────────────────────────────────────────
+
+  Senaryo: Bir rezervasyonun müşteri adını öğrenmek istiyoruz.
+
+  SQL ile (JOIN gerekir):
+    SELECT m.Ad
+    FROM Rezervasyonlar r
+    INNER JOIN Musteriler m ON r.MusteriID = m.MusteriID
+    WHERE r.RezervasyonID = 1
+
+  EF6 + Navigation Property ile:
+    var rez = db.Rezervasyonlar.Find(1);
+    string musteriAdi = rez.Musteri.Ad;     ← Tek satır! JOIN otomatik yapılır.
+
+  Bu nasıl mümkün?
+    → Rezervasyon sınıfında "public virtual Musteri Musteri" tanımladık.
+    → EF6, MusteriID foreign key'i sayesinde ilişkiyi biliyor.
+    → rez.Musteri dediğimizde, EF6 arka planda JOIN sorgusu çalıştırır.
+    → Bize doğrudan Musteri nesnesini döndürür.
+
+
+4.4 CLASS DIAGRAM'DA İLİŞKİLERİN GÖRÜNMESİ
+──────────────────────────────────────────────
+Visual Studio'da Class Diagram açtığınızda, Navigation Property'ler sayesinde
+sınıflar arasında ilişki okları otomatik çizilir:
+
+  → ICollection<Rezervasyon> → "1 tarafı" temsil eder (çizginin kalın ucu)
+  → virtual Musteri → "N tarafı" temsil eder (çizginin ok ucu)
+  → [ForeignKey] attribute'u → İlişkinin hangi alan üzerinden kurulduğunu belirtir
+
+  Bu oklar olmazsa ödeviniz kabul edilmez! Bu yüzden Navigation Property'leri
+  eksiksiz tanımlamak çok önemlidir.
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    BÖLÜM 5: CRUD İŞLEMLERİ (DETAYLI)                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+5.1 CREATE (EKLEME) İŞLEMİ
+─────────────────────────────
+  using (var db = new ContextDb())
+  {
+      var yeniMusteri = new Musteri          ← Object Initializer ile nesne oluştur
+      {
+          Ad = "Ahmet",                      ← set çağrılır
+          Soyad = "Yılmaz",                  ← set çağrılır
+          Telefon = "0532 111 2233"           ← set çağrılır
+      };
+
+      db.Musteriler.Add(yeniMusteri);        ← Nesneyi DbSet'e ekle
+      db.SaveChanges();                       ← Değişiklikleri veritabanına kaydet
+  }
+
+  Arka planda oluşturulan SQL:
+    INSERT INTO Musteriler (Ad, Soyad, Telefon)
+    VALUES ('Ahmet', 'Yılmaz', '0532 111 2233')
+
+  Not: MusteriID yazmıyoruz çünkü IDENTITY(1,1) ile otomatik atanır.
+
+
+5.2 READ (OKUMA/LİSTELEME) İŞLEMİ
+─────────────────────────────────────
+  using (var db = new ContextDb())
+  {
+      // Tüm müşterileri listele
+      var liste = db.Musteriler.ToList();
+
+      // LINQ ile filtreleme
+      var filtrelenmis = db.Musteriler
+          .Where(m => m.Ad == "Ahmet")       ← WHERE koşulu
+          .ToList();
+
+      // Tek kayıt bul (Primary Key ile)
+      var musteri = db.Musteriler.Find(1);   ← MusteriID = 1 olan kaydı bul
+  }
+
+  Arka planda oluşturulan SQL'ler:
+    SELECT * FROM Musteriler                          → ToList()
+    SELECT * FROM Musteriler WHERE Ad = 'Ahmet'       → Where + ToList()
+    SELECT * FROM Musteriler WHERE MusteriID = 1       → Find(1)
+
+
+5.3 UPDATE (GÜNCELLEME) İŞLEMİ
+─────────────────────────────────
+  using (var db = new ContextDb())
+  {
+      var musteri = db.Musteriler.Find(1);   ← Önce kaydı bul
+
+      if (musteri != null)
+      {
+          musteri.Ad = "Mehmet";              ← Alanı değiştir (set çağrılır)
+          musteri.Telefon = "0533 999 8877";  ← Alanı değiştir
+
+          db.SaveChanges();                   ← Değişiklikleri kaydet
+      }
+  }
+
+  Arka planda oluşturulan SQL:
+    UPDATE Musteriler
+    SET Ad = 'Mehmet', Telefon = '0533 999 8877'
+    WHERE MusteriID = 1
+
+  Not: EF6'nın "Change Tracking" özelliği sayesinde hangi alanların
+  değiştiğini otomatik tespit eder. Sadece değişen alanları günceller.
+
+  NOT: Rezervasyon tablosu için güncelleme işlemi YOKTUR (hocanın talimatı).
+
+
+5.4 DELETE (SİLME) İŞLEMİ
+────────────────────────────
+  using (var db = new ContextDb())
+  {
+      var musteri = db.Musteriler.Find(1);   ← Silinecek kaydı bul
+
+      if (musteri != null)
+      {
+          db.Musteriler.Remove(musteri);      ← DbSet'ten çıkar
+          db.SaveChanges();                   ← Veritabanından sil
+      }
+  }
+
+  Arka planda oluşturulan SQL:
+    DELETE FROM Musteriler WHERE MusteriID = 1
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      BÖLÜM 6: LINQ SORGULARI                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+6.1 LINQ NEDİR?
+─────────────────
+LINQ (Language Integrated Query), C# dilinin içine gömülü bir sorgulama dilidir.
+SQL yazmak yerine C# ile veritabanı sorguları yazmanızı sağlar.
+
+Temel LINQ Metotları:
+
+  .Where(x => x.Koşul)           → Filtreleme (SQL WHERE)
+  .Select(x => new { ... })      → Seçme/Projeksiyon (SQL SELECT)
+  .OrderBy(x => x.Alan)          → Sıralama (SQL ORDER BY)
+  .GroupBy(x => x.Alan)          → Gruplama (SQL GROUP BY)
+  .Count()                        → Sayma (SQL COUNT)
+  .Sum(x => x.Alan)              → Toplam (SQL SUM)
+  .Average(x => x.Alan)          → Ortalama (SQL AVG)
+  .First() / .FirstOrDefault()   → İlk kayıt (SQL TOP 1)
+  .ToList()                       → Sorguyu çalıştır, listeye dönüştür
+  .Any(x => x.Koşul)             → Koşulu sağlayan kayıt var mı? (bool)
+
+
+6.2 LAMBDA İFADELERİ ( => )
+──────────────────────────────
+  Lambda ifadesi, anonim (isimsiz) fonksiyon tanımlamanın kısa yoludur.
+
+  Uzun hali:
+    bool KosulKontrol(Rezervasyon r)
+    {
+        return r.Saha.SaatlikUcret > 1500;
+    }
+    var sonuc = db.Rezervasyonlar.Where(KosulKontrol);
+
+  Lambda hali:
+    var sonuc = db.Rezervasyonlar.Where(r => r.Saha.SaatlikUcret > 1500);
+
+  "r =>" → "r parametresi alınır ve şu koşul kontrol edilir" anlamına gelir.
+  "r" bir Rezervasyon nesnesidir. İstediğiniz ismi verebilirsiniz (x, rez, vb.)
+
+
+6.3 ANONİM TİP (ANONYMOUS TYPE)
+──────────────────────────────────
+  Select içinde "new { ... }" kullanarak geçici, isimsiz bir sınıf oluşturursunuz.
+
+  var sonuc = db.Musteriler.Select(m => new
+  {
+      m.MusteriID,                          ← Property adı korunur
+      AdSoyad = m.Ad + " " + m.Soyad,      ← Yeni property oluşturulur
+      RezervasyonSayisi = m.Rezervasyonlar.Count  ← Hesaplama yapılır
+  }).ToList();
+
+  Bu, "Sadece bu 3 bilgiyi ver, geri kalanını getirme" demektir.
+  SQL karşılığı:
+    SELECT MusteriID, Ad + ' ' + Soyad AS AdSoyad,
+           (SELECT COUNT(*) FROM Rezervasyonlar WHERE MusteriID = m.MusteriID)
+    FROM Musteriler
+
+
+6.4 PROJEDEKİ LINQ SORGULARI (DETAYLI)
+─────────────────────────────────────────
+
+  SORGU 1: Saatlik ücreti 1500 TL'den fazla olan sahaların rezervasyonları
+  ─────────────────────────────────────────────────────────────────────────
+
+  var sonuclar = db.Rezervasyonlar
+      .Where(r => r.Saha.SaatlikUcret > 1500)    ← Filtreleme
+      .Select(r => new                             ← Seçilecek alanlar
+      {
+          r.RezervasyonID,
+          MusteriAdSoyad = r.Musteri.Ad + " " + r.Musteri.Soyad,
+          SahaAdi = r.Saha.SahaAdi,
+          SaatlikUcret = r.Saha.SaatlikUcret,
+          r.MacTarihi,
+          r.MacSaati
+      })
+      .ToList();                                   ← Sorguyu çalıştır
+
+  Adım adım açıklama:
+    1. db.Rezervasyonlar → Rezervasyonlar tablosuna eriş
+    2. .Where(r => r.Saha.SaatlikUcret > 1500)
+       → r.Saha → Navigation Property ile Sahalar tablosuna git
+       → .SaatlikUcret > 1500 → Ücreti 1500'den büyük olanları filtrele
+    3. .Select(r => new { ... })
+       → r.Musteri.Ad → Navigation Property ile müşteri adına eriş
+       → r.Saha.SahaAdi → Navigation Property ile saha adına eriş
+       → İki ayrı JOIN işlemi EF6 tarafından otomatik oluşturulur
+    4. .ToList() → Sorguyu veritabanında çalıştır ve sonuçları getir
+
+  SQL karşılığı:
+    SELECT r.RezervasyonID, m.Ad + ' ' + m.Soyad, s.SahaAdi, s.SaatlikUcret,
+           r.MacTarihi, r.MacSaati
+    FROM Rezervasyonlar r
+    INNER JOIN Musteriler m ON r.MusteriID = m.MusteriID
+    INNER JOIN Sahalar s ON r.SahaID = s.SahaID
+    WHERE s.SaatlikUcret > 1500
+
+
+  SORGU 2: Her müşterinin toplam rezervasyon sayısı ve harcadığı tutar
+  ─────────────────────────────────────────────────────────────────────
+
+  var sonuclar = db.Musteriler
+      .Select(m => new
+      {
+          MusteriAdSoyad = m.Ad + " " + m.Soyad,
+          m.Telefon,
+          RezervasyonSayisi = m.Rezervasyonlar.Count,
+          ToplamTutar = m.Rezervasyonlar
+              .Select(r => r.Saha.SaatlikUcret)
+              .DefaultIfEmpty(0)
+              .Sum()
+      })
+      .ToList();
+
+  Adım adım açıklama:
+    1. db.Musteriler → Musteriler tablosundan başla
+    2. .Select(m => new { ... }) → Her müşteri için:
+       a. m.Ad + " " + m.Soyad → Ad ve soyadı birleştir
+       b. m.Rezervasyonlar.Count → O müşterinin kaç rezervasyonu var?
+          → Navigation Property üzerinden koleksiyondaki eleman sayısı
+       c. m.Rezervasyonlar.Select(r => r.Saha.SaatlikUcret)
+          → Her rezervasyonun sahası üzerinden ücretleri al
+          .DefaultIfEmpty(0) → Hiç rezervasyon yoksa 0 olarak değerlendir
+          .Sum() → Ücretleri topla
+    3. .ToList() → Sorguyu çalıştır
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    BÖLÜM 7: CONTEXTDB SINIFI (DETAYLI)                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  public class ContextDb : DbContext          ← DbContext'ten miras alır
+  {
+      public ContextDb() : base("HaliSahaDB") ← Yapıcı metot
+      {
+      }
+
+      public DbSet<Musteri> Musteriler { get; set; }
+      public DbSet<Saha> Sahalar { get; set; }
+      public DbSet<Rezervasyon> Rezervasyonlar { get; set; }
+  }
+
+  Detaylı açıklama:
+
+  : DbContext
+    → "Miras alma" (Inheritance) operatörü.
+    → ContextDb sınıfı, DbContext'in tüm özelliklerini devralır.
+    → SaveChanges(), Dispose() gibi metotlar otomatik kullanılabilir.
+
+  : base("HaliSahaDB")
+    → Üst sınıfın (DbContext) yapıcı metodunu çağırır.
+    → "HaliSahaDB" → App.config dosyasındaki connection string adıdır.
+    → Bu ad ile veritabanı bağlantı bilgileri eşleştirilir.
+
+  public DbSet<Musteri> Musteriler { get; set; }
+    → Veritabanındaki "Musteriler" tablosunu temsil eder.
+    → [Table("Musteriler")] attribute'u ile tablo adı eşleşir.
+    → CRUD işlemleri bu DbSet üzerinden yapılır:
+      - db.Musteriler.Add(nesne)    → Ekleme
+      - db.Musteriler.Find(id)      → Bulma
+      - db.Musteriler.Remove(nesne) → Silme
+      - db.Musteriler.ToList()      → Listeleme
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                  BÖLÜM 8: WINDOWS FORMS YAPISI                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+8.1 PARTIAL CLASS NEDİR?
+──────────────────────────
+  public partial class Form1 : Form
+
+  "partial" anahtar kelimesi, bir sınıfın birden fazla dosyada
+  tanımlanabilmesini sağlar:
+
+  Form1.cs (Sizin yazdığınız kod):
+    → Event handler'lar (buton tıklama olayları)
+    → CRUD metotları
+    → LINQ sorguları
+
+  Form1.Designer.cs (Visual Studio'nun oluşturduğu kod):
+    → Kontrollerin tanımları (butonlar, textbox'lar, vb.)
+    → Kontrollerin özellikleri (konum, boyut, renk, vb.)
+    → Event bağlantıları
+
+  Derleme sırasında iki dosya birleşerek tek bir Form1 sınıfı oluşturur.
+
+
+8.2 EVENT (OLAY) SİSTEMİ
+──────────────────────────
+  Windows Forms'da her kontrolün olayları (event) vardır:
+
+  Buton tıklama olayı:
+    this.btnMusteriEkle.Click += new EventHandler(this.btnMusteriEkle_Click);
+
+  Bu satır şu anlama gelir:
+    "btnMusteriEkle butonuna tıklandığında, btnMusteriEkle_Click metodunu çalıştır"
+
+  Event handler (olay işleyici) metodu:
+    private void btnMusteriEkle_Click(object sender, EventArgs e)
+    {
+        // Buton tıklandığında çalışacak kod
+    }
+
+  sender → Olayı tetikleyen nesne (buton)
+  e → Olay bilgileri
+
+
+8.3 DATAGRIDVIEW KULLANIMI
+────────────────────────────
+  DataGridView, verileri tablo şeklinde gösteren bir kontroldür.
+
+  Veri bağlama:
+    dgvMusteriler.DataSource = musteriListesi;  ← Listeyi tabloya bağla
+
+  Satır seçimi:
+    dgvMusteriler.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+
+  Satıra tıklanınca veri alma:
+    private void dgvMusteriler_CellClick(object sender, DataGridViewCellEventArgs e)
+    {
+        var satir = dgvMusteriler.Rows[e.RowIndex];
+        int id = Convert.ToInt32(satir.Cells["MusteriID"].Value);
+    }
+
+
+8.4 COMBOBOX KULLANIMI
+────────────────────────
+  ComboBox, açılır liste kontrolüdür.
+
+  Veri bağlama:
+    cmbMusteri.DataSource = musteriler;      ← Veri kaynağı
+    cmbMusteri.DisplayMember = "AdSoyad";    ← Görüntülenecek metin
+    cmbMusteri.ValueMember = "MusteriID";    ← Arka plandaki değer
+
+  Seçilen değeri alma:
+    int musteriId = Convert.ToInt32(cmbMusteri.SelectedValue);
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      BÖLÜM 9: TABLO İLİŞKİ ÖZETİ                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                    İLİŞKİ ŞEMASI                                │
+  ├─────────────────────────────────────────────────────────────────┤
+  │                                                                 │
+  │  Musteri (Müstakil)                 Saha (Müstakil)            │
+  │  ┌─────────────────┐               ┌─────────────────┐        │
+  │  │ MusteriID (PK)  │               │ SahaID (PK)     │        │
+  │  │ Ad              │               │ SahaAdi         │        │
+  │  │ Soyad           │               │ SahaTuru        │        │
+  │  │ Telefon         │               │ SaatlikUcret    │        │
+  │  │                 │               │                 │        │
+  │  │ Rezervasyonlar  │               │ Rezervasyonlar  │        │
+  │  │ (ICollection)   │               │ (ICollection)   │        │
+  │  └───────┬─────────┘               └───────┬─────────┘        │
+  │          │ 1:N                        N:1  │                   │
+  │          │                                  │                   │
+  │          ▼                                  ▼                   │
+  │  ┌──────────────────────────────────────────┐                  │
+  │  │         Rezervasyon (Aracı Tablo)        │                  │
+  │  ├──────────────────────────────────────────┤                  │
+  │  │ RezervasyonID (PK)                       │                  │
+  │  │ MusteriID (FK) ──► Musteri tablosuna     │                  │
+  │  │ SahaID (FK)    ──► Saha tablosuna        │                  │
+  │  │ MacTarihi                                │                  │
+  │  │ MacSaati                                 │                  │
+  │  │                                          │                  │
+  │  │ Musteri (Navigation Property)            │                  │
+  │  │ Saha (Navigation Property)               │                  │
+  │  └──────────────────────────────────────────┘                  │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                  BÖLÜM 10: İŞLEM ÖZETİ TABLOSU                            ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  ┌─────────────────┬────────────┬────────────────────┬──────────────────┐
+  │ Tablo           │ Tablo Türü │ İşlemler           │ LINQ Sorgusu     │
+  ├─────────────────┼────────────┼────────────────────┼──────────────────┤
+  │ Musteriler      │ Müstakil   │ Ekle, Sil,         │ -                │
+  │                 │            │ Güncelle, Listele  │                  │
+  │                 │            │ (4 İşlem)          │                  │
+  ├─────────────────┼────────────┼────────────────────┼──────────────────┤
+  │ Sahalar         │ Müstakil   │ (Veri SQL ile      │ -                │
+  │                 │            │  eklenir)          │                  │
+  ├─────────────────┼────────────┼────────────────────┼──────────────────┤
+  │ Rezervasyonlar  │ Aracı      │ Ekle, Sil,         │ 2 adet LINQ     │
+  │                 │            │ Listele            │ sorgusu          │
+  │                 │            │ (3 İşlem)          │ (RadioButton     │
+  │                 │            │ ⚠️ UPDATE YOK!     │  ile tetiklenir) │
+  └─────────────────┴────────────┴────────────────────┴──────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║               BÖLÜM 11: SIK SORULAN SORULAR (SSS)                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+S: "virtual" anahtar kelimesini neden kullanıyoruz?
+C: Lazy Loading (tembel yükleme) için. İlişkili veriler sadece erişildiğinde
+   veritabanından çekilir. virtual kaldırılırsa Navigation Property çalışmaz.
+
+S: Neden HashSet kullanıyoruz, List olabilir mi?
+C: HashSet, aynı nesnenin tekrar eklenmesini engeller ve daha hızlıdır.
+   List de kullanılabilir ama HashSet tercih edilir.
+
+S: SaveChanges() ne iş yapar?
+C: EF6'nın takip ettiği tüm değişiklikleri (ekleme, güncelleme, silme)
+   tek seferde veritabanına gönderir. Bu metot çağrılmadan değişiklikler
+   veritabanına yansımaz.
+
+S: Find() ile Where() arasındaki fark nedir?
+C: Find(id) → Primary Key ile tek kayıt bulur. Önce bellekte arar.
+   Where(koşul) → Koşula uyan tüm kayıtları döndürür. Her zaman SQL oluşturur.
+
+S: Neden Rezervasyon tablosunda UPDATE yok?
+C: Hocanın talimatı gereği aracı tabloda güncelleme işlemi istenmemiştir.
+   Gerekirse rezervasyonu silip yeni bir tane eklenebilir.
+
+S: DefaultIfEmpty(0) ne işe yarar?
+C: LINQ Sum() metodunda, eğer koleksiyonda hiç eleman yoksa hata verir.
+   DefaultIfEmpty(0) → "Eleman yoksa 0 olarak değerlendir" der.
+
+S: Anonim tip (anonymous type) nedir?
+C: new { } ile oluşturulan, ismi olmayan geçici sınıftır. Sadece sorgu
+   sonuçlarını taşımak için kullanılır. Kalıcı bir sınıf değildir.
+
+
+================================================================================
+  Bu dokümanı okuyarak:
+  ✓ Entity Framework 6'nın temellerini öğrendiniz
+  ✓ Sınıf yapılarını ve Property'leri anladınız
+  ✓ Miras (Inheritance) kavramını kavradınız
+  ✓ İlişkileri ve Navigation Property'leri öğrendiniz
+  ✓ CRUD işlemlerini detaylı şekilde gördünüz
+  ✓ LINQ sorgularının nasıl çalıştığını anladınız
+
+  Artık benzer bir projeyi kendiniz baştan sona yapabilirsiniz! 💪
+================================================================================

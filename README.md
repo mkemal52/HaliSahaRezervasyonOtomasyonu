@@ -158,7 +158,6 @@ Uygulama **3 sekmeden** oluşur:
 - **Ekle**: Yeni rezervasyon oluşturur (Müşteri + Saha + Tarih + Saat seçimi).
 - **Sil**: Seçili rezervasyonu siler.
 - **Listele**: Tüm rezervasyonları ilişkili bilgilerle gösterir.
-- ⚠️ **Güncelleme işlemi yoktur** (hocanın talimatı gereği).
 
 ### Sekme 3: LINQ Sorguları
 - **Sorgu 1**: Saatlik ücreti 1500 TL'den fazla olan sahaların rezervasyonları.

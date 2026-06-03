@@ -209,7 +209,7 @@ var sonuclar = db.Musteriler
 | Bilgi | Değer |
 |---|---|
 | Proje Türü | Dönem Sonu Ödevi |
-| Ders | Veritabanı / Yazılım Mühendisliği |
+| Ders | Nesnesel Tasarım ve Programlama / Yönetim Bilişim Sistemleri |
 | Platform | .NET Framework 4.7.2 |
 | ORM | Entity Framework 6 |
 | Veritabanı | Microsoft SQL Server |

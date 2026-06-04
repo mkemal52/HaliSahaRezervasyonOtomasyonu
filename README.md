@@ -158,7 +158,6 @@ Uygulama **3 sekmeden** oluşur:
 - **Ekle**: Yeni rezervasyon oluşturur (Müşteri + Saha + Tarih + Saat seçimi).
 - **Sil**: Seçili rezervasyonu siler.
 - **Listele**: Tüm rezervasyonları ilişkili bilgilerle gösterir.
-- ⚠️ **Güncelleme işlemi yoktur** (hocanın talimatı gereği).
 
 ### Sekme 3: LINQ Sorguları
 - **Sorgu 1**: Saatlik ücreti 1500 TL'den fazla olan sahaların rezervasyonları.
@@ -210,7 +209,7 @@ var sonuclar = db.Musteriler
 | Bilgi | Değer |
 |---|---|
 | Proje Türü | Dönem Sonu Ödevi |
-| Ders | Veritabanı / Yazılım Mühendisliği |
+| Ders | Nesnesel Tasarım ve Programlama / Yönetim Bilişim Sistemleri |
 | Platform | .NET Framework 4.7.2 |
 | ORM | Entity Framework 6 |
 | Veritabanı | Microsoft SQL Server |

@@ -17,18 +17,95 @@ namespace HaliSahaRezervasyonOtomasyonu
         private int seciliMusteriID = 0;
         private int seciliSahaID = 0;
         private int seciliRezervasyonID = 0;
+        private Image animImage = null;
 
         public Form1()
         {
             InitializeComponent();
         }
 
+        private void SetDoubleBuffered(Control c)
+        {
+            if (SystemInformation.TerminalServerSession) return;
+            System.Reflection.PropertyInfo aProp = typeof(Control).GetProperty(
+                "DoubleBuffered",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            if (aProp != null) aProp.SetValue(c, true, null);
+        }
+
+        private void tmrAnimasyon_Tick(object sender, EventArgs e)
+        {
+            lblAnimasyon.Left += 3;
+
+            if (lblAnimasyon.Left > this.Width)
+            {
+                lblAnimasyon.Left = -100;
+            }
+        }
+
         private void Form1_Load(object sender, EventArgs e)
         {
+            try
+            {
+                SetDoubleBuffered(this);
+                SetDoubleBuffered(tabControl);
+                SetDoubleBuffered(tabMusteri);
+                SetDoubleBuffered(tabSaha);
+                SetDoubleBuffered(tabRezervasyon);
+                SetDoubleBuffered(tabLinq);
+                SetDoubleBuffered(dgvMusteriler);
+                SetDoubleBuffered(dgvSahalar);
+                SetDoubleBuffered(dgvRezervasyonlar);
+            }
+            catch { }
+
+            try
+            {
+                string imgPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "soccer_field_bg.png");
+                if (System.IO.File.Exists(imgPath))
+                {
+                    var bgImage = System.Drawing.Image.FromFile(imgPath);
+                    tabMusteri.BackgroundImage = bgImage;
+                    tabMusteri.BackgroundImageLayout = ImageLayout.Stretch;
+                    tabSaha.BackgroundImage = bgImage;
+                    tabSaha.BackgroundImageLayout = ImageLayout.Stretch;
+                    tabRezervasyon.BackgroundImage = bgImage;
+                    tabRezervasyon.BackgroundImageLayout = ImageLayout.Stretch;
+                    tabLinq.BackgroundImage = bgImage;
+                    tabLinq.BackgroundImageLayout = ImageLayout.Stretch;
+                }
+            }
+            catch { }
+
+            try
+            {
+                string animPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "soccer_anim.gif");
+                if (System.IO.File.Exists(animPath))
+                {
+                    animImage = System.Drawing.Image.FromFile(animPath);
+                    UpdateTabAnimations();
+                }
+            }
+            catch { }
+
             MusterileriListele();
             SahalariListele();
             RezervasyonlariListele();
             ComboBoxlariDoldur();
+        }
+
+        private void UpdateTabAnimations()
+        {
+            if (animImage == null) return;
+            picMusteriAnim.Image = (tabControl.SelectedTab == tabMusteri) ? animImage : null;
+            picSahaAnim.Image = (tabControl.SelectedTab == tabSaha) ? animImage : null;
+            picRezervasyonAnim.Image = (tabControl.SelectedTab == tabRezervasyon) ? animImage : null;
+        }
+
+        private void tabControl_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdateTabAnimations();
         }
 
         private void ComboBoxlariDoldur()
@@ -70,10 +147,6 @@ namespace HaliSahaRezervasyonOtomasyonu
             txtSaatlikUcret.Text = "";
             seciliSahaID = 0;
         }
-
-        // ============================================================
-        // ========== MÜŞTERİ CRUD İŞLEMLERİ (4 İşlem) ===============
-        // ============================================================
 
         private void btnMusteriEkle_Click(object sender, EventArgs e)
         {
@@ -246,10 +319,6 @@ namespace HaliSahaRezervasyonOtomasyonu
                 txtMusteriTelefon.Text = satir.Cells["Telefon"].Value.ToString();
             }
         }
-
-        // ============================================================
-        // ============ SAHA CRUD İŞLEMLERİ (4 İşlem) ================
-        // ============================================================
 
         private void btnSahaEkle_Click(object sender, EventArgs e)
         {
@@ -437,11 +506,6 @@ namespace HaliSahaRezervasyonOtomasyonu
             }
         }
 
-        // ============================================================
-        // ======= REZERVASYON CRD İŞLEMLERİ (3 İşlem) ===============
-        // ======= NOT: GÜNCELLEME (UPDATE) İŞLEMİ YOKTUR! ===========
-        // ============================================================
-
         private void btnRezervasyonEkle_Click(object sender, EventArgs e)
         {
             if (cmbMusteri.SelectedValue == null || cmbSaha.SelectedValue == null)
@@ -464,10 +528,9 @@ namespace HaliSahaRezervasyonOtomasyonu
                     DateTime seciliTarih = dtpMacTarihi.Value.Date;
                     string seciliSaat = cmbMacSaati.SelectedItem.ToString();
 
-                    // Çakışma Kontrolü
-                    bool cakismaVar = db.Rezervasyonlar.Any(r => 
-                        r.SahaID == sahaId && 
-                        r.MacTarihi == seciliTarih && 
+                    bool cakismaVar = db.Rezervasyonlar.Any(r =>
+                        r.SahaID == sahaId &&
+                        r.MacTarihi == seciliTarih &&
                         r.MacSaati == seciliSaat);
 
                     if (cakismaVar)
@@ -589,10 +652,6 @@ namespace HaliSahaRezervasyonOtomasyonu
                 seciliRezervasyonID = Convert.ToInt32(satir.Cells["RezervasyonID"].Value);
             }
         }
-
-        // ============================================================
-        // =============== LINQ SORGU İŞLEMLERİ =======================
-        // ============================================================
 
         private void btnSorguCalistir_Click(object sender, EventArgs e)
         {
